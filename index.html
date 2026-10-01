@@ -125,16 +125,16 @@ td.n{color:var(--bad);font-weight:600;white-space:nowrap}
   <!-- SETUP -->
   <section id="setup">
     <h1>Зубрилка</h1>
-    <p class="lead">Вставь список слов или загрузи .txt. Сначала четыре теста с вариантами, потом одно слово пишешь сам. Ошибка вернётся через четыре вопроса.</p>
+    <p class="lead">Вставь список слов или загрузи .txt. После каждых четырёх тестов одно слово пишешь сам по-английски, а в конце допишешь все, что остались. Ошибка вернётся через четыре вопроса.</p>
     <div class="sheet">
       <textarea id="src" spellcheck="false" placeholder="apple - яблоко&#10;to borrow - одалживать, занимать&#10;reliable - надёжный&#10;to avoid - избегать"></textarea>
       <div class="row">
         <label class="filebtn">Загрузить .txt<input id="file" type="file" accept=".txt,.csv,.tsv,text/plain"></label>
-        <span class="hint">Одна пара на строку. Разделитель: тире с пробелами, табуляция или точка с запятой.</span>
+        <span class="hint">Одна пара на строку: слева английское слово, справа перевод. Разделитель: тире с пробелами, табуляция или точка с запятой.</span>
       </div>
       <div id="status" class="status"></div>
       <fieldset>
-        <legend>Что спрашивать</legend>
+        <legend>Что спрашивать в тестах</legend>
         <label class="radio"><input type="radio" name="dir" value="td" checked><span>Показываю слово, ты вспоминаешь перевод</span></label>
         <label class="radio"><input type="radio" name="dir" value="dt"><span>Показываю перевод, ты вспоминаешь слово</span></label>
       </fieldset>
@@ -181,7 +181,7 @@ const $ = s => document.querySelector(s);
 const KEY = 'zubrilka:v1';
 
 let allCards = [], cards = [], dir = 'td';
-let queue = [], cur = null, cycle = 0, recent = [], written = new Set();
+let queue = [], cur = null, cycle = 0, recent = [], written = new Set(), seen = new Set(), writtenOk = new Set();
 let stats = {}, firstTotal = 0, firstOk = 0, lastRetry = null, timer = null, locked = false;
 
 /* ---------- parsing ---------- */
@@ -242,7 +242,7 @@ function start(list){
   dir = currentDir();
   cards = list;
   queue = shuffle(cards.map(c => ({ type: 'mc', id: c.id })));
-  cycle = 0; recent = []; written = new Set(); stats = {}; firstTotal = 0; firstOk = 0;
+  cycle = 0; recent = []; written = new Set(); seen = new Set(); writtenOk = new Set(); stats = {}; firstTotal = 0; firstOk = 0;
   cards.forEach(c => stats[c.id] = { wrong: 0 });
   show('quiz');
   next();
@@ -250,7 +250,13 @@ function start(list){
 function next(){
   clearTimeout(timer);
   lastRetry = null; locked = false;
-  if (!queue.length){ finish(); return; }
+  if (!queue.length){
+    const left = shuffle(cards.filter(c => !written.has(c.id)));
+    if (!left.length){ finish(); return; }
+    left.forEach(c => written.add(c.id));
+    queue = left.map(c => ({ type: 'write', id: c.id, practice: true, final: true }));
+    cycle = CYCLE;
+  }
   cur = queue.shift();
   render();
 }
@@ -269,14 +275,14 @@ function render(){
   if (cur.practice) pc.classList.add('now');
   strip.appendChild(pc);
 
-  $('#meta').textContent = 'Осталось вопросов: ' + (queue.length + 1);
+  $('#meta').textContent = 'Осталось вопросов: ' + (queue.length + 1) + '. Написано по-английски: ' + writtenOk.size + ' из ' + cards.length;
 
   const kind = $('#kind'); kind.innerHTML = '';
   const what = dir === 'td' ? 'перевод' : 'слово';
   if (cur.retry) kind.appendChild(el('span', 'retry', 'Повтор ошибки. '));
-  kind.appendChild(document.createTextNode(cur.type === 'mc' ? 'Тест: выбери ' + what : (cur.practice ? 'Практика: напиши ' + what : 'Напиши ' + what)));
+  kind.appendChild(document.createTextNode(cur.type === 'mc' ? 'Тест: выбери ' + what : (cur.practice ? 'Практика: напиши по-английски' : 'Напиши по-английски')));
 
-  $('#prompt').textContent = P(c);
+  $('#prompt').textContent = cur.type === 'mc' ? P(c) : c.def;
   $('#feedback').innerHTML = '';
   const area = $('#answerArea'); area.innerHTML = '';
 
@@ -318,16 +324,22 @@ function grade(ok){
 
   if (cur.type === 'mc'){
     cycle++;
+    seen.add(cur.id);
     recent.push(cur.id); if (recent.length > CYCLE) recent.shift();
     if (cycle >= CYCLE){
-      const fresh = recent.filter(id => !written.has(id));
-      const pool = fresh.length ? fresh : recent;
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      written.add(pick);
-      queue.unshift({ type: 'write', id: pick, practice: true });
+      const fromRecent = recent.filter(id => !written.has(id));
+      const pool = fromRecent.length ? fromRecent : [...seen].filter(id => !written.has(id));
+      if (pool.length){
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        written.add(pick);
+        queue.unshift({ type: 'write', id: pick, practice: true });
+      } else {
+        cycle = 0;
+      }
     }
-  } else if (cur.practice){
-    cycle = 0;
+  } else {
+    if (ok) writtenOk.add(cur.id);
+    if (cur.practice && !cur.final) cycle = 0;
   }
   if (!ok){
     lastRetry = { type: cur.type, id: cur.id, retry: true };
@@ -368,7 +380,7 @@ function chooseMc(btn, right){
 }
 
 function checkWrite(inp, btn){
-  const c = byId(cur.id), right = A(c);
+  const c = byId(cur.id), right = c.term;
   const ok = matches(inp.value, right);
   grade(ok);
   inp.readOnly = true; btn.disabled = true;
@@ -388,6 +400,7 @@ function checkWrite(inp, btn){
       const i = queue.indexOf(lastRetry);
       if (i >= 0) queue.splice(i, 1);
       stats[c.id].wrong--;
+      writtenOk.add(c.id);
       if (!cur.retry) firstOk++;
       next();
     });
