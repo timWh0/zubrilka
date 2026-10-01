@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Зубрилка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF2F6; --grid:#DCE3EC; --card:#FFFFFF; --ink:#1C2B66; --ink-soft:#56618A;
+  --line:#C5CFDC; --good:#1F7A52; --good-bg:#E2F3EA; --bad:#B8342A; --bad-bg:#FBE6E3; --focus:#3D5BD9;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#111726; --grid:#1A2234; --card:#1A2236; --ink:#DDE4FF; --ink-soft:#97A3CB;
+    --line:#2E3953; --good:#55C891; --good-bg:#16352A; --bad:#FF7A6B; --bad-bg:#3A1C1C; --focus:#8FA4FF;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111726; --grid:#1A2234; --card:#1A2236; --ink:#DDE4FF; --ink-soft:#97A3CB;
+  --line:#2E3953; --good:#55C891; --good-bg:#16352A; --bad:#FF7A6B; --bad-bg:#3A1C1C; --focus:#8FA4FF;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;min-height:100%;color:var(--ink);background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;
+  font-family:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:17px;line-height:1.5;
+}
+.wrap{max-width:640px;margin:0 auto;padding:36px 20px 56px}
+h1,h2,.prompt{font-family:"Unbounded","Golos Text",system-ui,sans-serif}
+h1{font-size:clamp(30px,7vw,44px);font-weight:700;line-height:1.05;margin:0 0 10px;letter-spacing:-0.02em}
+h2{font-size:24px;font-weight:700;margin:0 0 12px}
+p{margin:0 0 16px}
+.lead{color:var(--ink-soft);max-width:52ch}
+.hidden{display:none!important}
+.sheet{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:20px}
+textarea{
+  width:100%;min-height:220px;resize:vertical;font:inherit;font-size:16px;color:var(--ink);background:var(--card);
+  border:1.5px solid var(--line);border-radius:10px;padding:14px;line-height:1.6
+}
+textarea:focus,input[type=text]:focus{outline:2px solid var(--focus);outline-offset:1px;border-color:transparent}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+.hint{font-size:14px;color:var(--ink-soft)}
+.status{font-size:15px;margin-top:10px;min-height:1.5em}
+.status.err{color:var(--bad)}
+fieldset{border:0;padding:0;margin:20px 0 0}
+legend{font-weight:600;margin-bottom:8px;padding:0}
+.radio{display:flex;gap:10px;align-items:flex-start;margin:6px 0;cursor:pointer}
+.radio input{margin-top:5px;accent-color:var(--ink)}
+button,.filebtn{
+  font:inherit;font-weight:600;border-radius:10px;cursor:pointer;padding:11px 18px;border:1.5px solid var(--ink);
+  background:transparent;color:var(--ink);
+}
+button.primary{background:var(--ink);color:var(--card)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,.filebtn:focus-within{outline:2px solid var(--focus);outline-offset:2px}
+.filebtn input{position:absolute;opacity:0;width:1px;height:1px}
+.linkbtn{border:0;padding:6px 0;font-weight:500;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px}
+
+/* quiz */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.strip{display:flex;gap:6px;align-items:center}
+.cell{width:30px;height:10px;border-radius:3px;border:1.5px solid var(--ink);background:transparent}
+.cell.done{background:var(--ink)}
+.cell.now{background:repeating-linear-gradient(45deg,var(--ink) 0 2px,transparent 2px 5px)}
+.cell.practice{width:44px;border-style:dashed}
+.cell.practice.now,.cell.practice.done{border-style:solid}
+.meta{font-size:14px;color:var(--ink-soft);margin-bottom:16px}
+.card{
+  background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:28px 22px 22px;
+  box-shadow:4px 4px 0 var(--line)
+}
+.kind{font-size:15px;color:var(--ink-soft);margin-bottom:10px}
+.kind .retry{color:var(--bad);font-weight:600}
+.prompt{font-size:clamp(24px,6vw,36px);font-weight:500;line-height:1.2;margin:0 0 24px;overflow-wrap:anywhere}
+.options{display:grid;gap:10px}
+.opt{
+  text-align:left;font-weight:500;border:1.5px solid var(--line);background:var(--card);display:flex;gap:12px;align-items:baseline;
+  overflow-wrap:anywhere
+}
+.opt:hover:not(:disabled){border-color:var(--ink)}
+.opt .k{font-size:13px;color:var(--ink-soft);min-width:1ch}
+.opt.right{border-color:var(--good);background:var(--good-bg);color:var(--good)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
+.opt:disabled{cursor:default;opacity:1}
+.writebox{display:flex;gap:10px;flex-wrap:wrap}
+.writebox input{
+  flex:1 1 240px;font:inherit;font-size:18px;padding:11px 14px;border-radius:10px;border:1.5px solid var(--line);
+  background:var(--card);color:var(--ink)
+}
+.writebox input.right{border-color:var(--good);background:var(--good-bg)}
+.writebox input.wrong{border-color:var(--bad);background:var(--bad-bg)}
+.feedback{margin-top:18px;font-size:16px}
+.feedback .good{color:var(--good);font-weight:600}
+.feedback .bad{color:var(--bad);font-weight:600}
+.feedback .answer{font-weight:600}
+.feedback .row{margin-top:12px}
+
+/* results */
+.score{font-family:"Unbounded","Golos Text",sans-serif;font-size:clamp(40px,10vw,64px);font-weight:700;line-height:1;margin:8px 0 6px}
+.table-wrap{overflow-x:auto;margin:18px 0}
+table{border-collapse:collapse;width:100%;font-size:16px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--ink-soft);font-size:14px}
+td.n{color:var(--bad);font-weight:600;white-space:nowrap}
+
+.credit{margin-top:48px;padding-top:14px;border-top:1px solid var(--line);font-size:14px;color:var(--ink-soft);text-align:center}
+
+@media (prefers-reduced-motion: no-preference){
+  .card{animation:drop .22s ease-out}
+  @keyframes drop{from{transform:translateY(6px);opacity:.4}to{transform:none;opacity:1}}
+}
+@media (max-width:420px){.wrap{padding:24px 14px 40px}.card{padding:22px 16px 18px}.cell{width:24px}.cell.practice{width:36px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- SETUP -->
+  <section id="setup">
+    <h1>Зубрилка</h1>
+    <p class="lead">Вставь список слов или загрузи .txt. Сначала четыре теста с вариантами, потом одно слово пишешь сам. Ошибка вернётся через четыре вопроса.</p>
+    <div class="sheet">
+      <textarea id="src" spellcheck="false" placeholder="apple - яблоко&#10;to borrow - одалживать, занимать&#10;reliable - надёжный&#10;to avoid - избегать"></textarea>
+      <div class="row">
+        <label class="filebtn">Загрузить .txt<input id="file" type="file" accept=".txt,.csv,.tsv,text/plain"></label>
+        <span class="hint">Одна пара на строку. Разделитель: тире с пробелами, табуляция или точка с запятой.</span>
+      </div>
+      <div id="status" class="status"></div>
+      <fieldset>
+        <legend>Что спрашивать</legend>
+        <label class="radio"><input type="radio" name="dir" value="td" checked><span>Показываю слово, ты вспоминаешь перевод</span></label>
+        <label class="radio"><input type="radio" name="dir" value="dt"><span>Показываю перевод, ты вспоминаешь слово</span></label>
+      </fieldset>
+      <div class="row"><button id="startBtn" class="primary" disabled>Начать</button></div>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz" class="hidden">
+    <div class="topbar">
+      <div class="strip" id="strip" aria-hidden="true"></div>
+      <button class="linkbtn" id="quitBtn">Закончить</button>
+    </div>
+    <div class="meta" id="meta"></div>
+    <div class="card" id="card">
+      <div class="kind" id="kind"></div>
+      <div class="prompt" id="prompt"></div>
+      <div id="answerArea"></div>
+      <div class="feedback" id="feedback" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" class="hidden">
+    <h2>Готово</h2>
+    <div class="score" id="score"></div>
+    <p class="lead" id="scoreText"></p>
+    <div id="mistakes"></div>
+    <div class="row">
+      <button class="primary" id="againWrongBtn">Учить ошибки</button>
+      <button id="againAllBtn">Пройти всё заново</button>
+      <button class="linkbtn" id="newListBtn">Другой список</button>
+    </div>
+  </section>
+
+  <footer class="credit">made by Kalinin Timofei with Claude</footer>
+
+</div>
+<script>
+(function(){
+const GAP = 4;         // ошибка возвращается через столько вопросов
+const CYCLE = 4;       // столько тестов перед практикой
+const $ = s => document.querySelector(s);
+const KEY = 'zubrilka:v1';
+
+let allCards = [], cards = [], dir = 'td';
+let queue = [], cur = null, cycle = 0, recent = [], written = new Set();
+let stats = {}, firstTotal = 0, firstOk = 0, lastRetry = null, timer = null, locked = false;
+
+/* ---------- parsing ---------- */
+function parse(text){
+  const out = [], bad = [];
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line) return;
+    let m = line.match(/\s+[-—–=]\s+|\t|;/);
+    if (!m) m = line.match(/[—–]/);
+    if (!m){ bad.push(i + 1); return; }
+    const a = line.slice(0, m.index).trim(), b = line.slice(m.index + m[0].length).trim();
+    if (!a || !b){ bad.push(i + 1); return; }
+    out.push({ id: out.length, term: a, def: b });
+  });
+  return { out, bad };
+}
+function refreshStatus(){
+  const { out, bad } = parse($('#src').value);
+  const st = $('#status');
+  st.classList.remove('err');
+  if (!$('#src').value.trim()){ st.textContent = ''; }
+  else if (out.length < 2){ st.textContent = 'Нужно хотя бы две пары, чтобы были варианты ответа.'; st.classList.add('err'); }
+  else {
+    st.textContent = 'Найдено пар: ' + out.length + (bad.length ? '. Пропущены строки без разделителя: ' + bad.slice(0, 8).join(', ') + (bad.length > 8 ? '…' : '') : '');
+  }
+  $('#startBtn').disabled = out.length < 2;
+  save();
+}
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify({ text: $('#src').value, dir: currentDir() })); } catch(e){}
+}
+function load(){
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (d){ $('#src').value = d.text || ''; const r = document.querySelector('input[name=dir][value="' + d.dir + '"]'); if (r) r.checked = true; }
+  } catch(e){}
+}
+function currentDir(){ const r = document.querySelector('input[name=dir]:checked'); return r ? r.value : 'td'; }
+
+/* ---------- helpers ---------- */
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const byId = id => allCards.find(c => c.id === id);
+const P = c => dir === 'td' ? c.term : c.def;
+const A = c => dir === 'td' ? c.def : c.term;
+const norm = s => s.toLowerCase().replace(/ё/g, 'е').replace(/[.,!?;:"'«»()\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+function matches(given, ans){
+  const g = norm(given);
+  if (!g) return false;
+  if (g === norm(ans)) return true;
+  return ans.split(/[,/;]/).some(p => norm(p) && norm(p) === g);
+}
+function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function show(id){ ['setup', 'quiz', 'results'].forEach(s => $('#' + s).classList.toggle('hidden', s !== id)); window.scrollTo(0, 0); }
+
+/* ---------- session ---------- */
+function start(list){
+  dir = currentDir();
+  cards = list;
+  queue = shuffle(cards.map(c => ({ type: 'mc', id: c.id })));
+  cycle = 0; recent = []; written = new Set(); stats = {}; firstTotal = 0; firstOk = 0;
+  cards.forEach(c => stats[c.id] = { wrong: 0 });
+  show('quiz');
+  next();
+}
+function next(){
+  clearTimeout(timer);
+  lastRetry = null; locked = false;
+  if (!queue.length){ finish(); return; }
+  cur = queue.shift();
+  render();
+}
+
+function render(){
+  const c = byId(cur.id);
+  // progress strip: 4 tests + 1 practice
+  const strip = $('#strip'); strip.innerHTML = '';
+  for (let i = 0; i < CYCLE; i++){
+    const cell = el('span', 'cell');
+    if (i < cycle) cell.classList.add('done');
+    else if (i === cycle && cur.type === 'mc') cell.classList.add('now');
+    strip.appendChild(cell);
+  }
+  const pc = el('span', 'cell practice');
+  if (cur.practice) pc.classList.add('now');
+  strip.appendChild(pc);
+
+  $('#meta').textContent = 'Осталось вопросов: ' + (queue.length + 1);
+
+  const kind = $('#kind'); kind.innerHTML = '';
+  const what = dir === 'td' ? 'перевод' : 'слово';
+  if (cur.retry) kind.appendChild(el('span', 'retry', 'Повтор ошибки. '));
+  kind.appendChild(document.createTextNode(cur.type === 'mc' ? 'Тест: выбери ' + what : (cur.practice ? 'Практика: напиши ' + what : 'Напиши ' + what)));
+
+  $('#prompt').textContent = P(c);
+  $('#feedback').innerHTML = '';
+  const area = $('#answerArea'); area.innerHTML = '';
+
+  const card = $('#card'); card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+
+  if (cur.type === 'mc'){
+    const right = A(c);
+    const others = shuffle([...new Set(allCards.map(A).filter(x => x !== right))]).slice(0, 3);
+    const opts = shuffle([right, ...others]);
+    const box = el('div', 'options');
+    opts.forEach((o, i) => {
+      const b = el('button', 'opt');
+      b.appendChild(el('span', 'k', String(i + 1)));
+      b.appendChild(el('span', '', o));
+      b.dataset.v = o;
+      b.addEventListener('click', () => chooseMc(b, right));
+      box.appendChild(b);
+    });
+    area.appendChild(box);
+  } else {
+    const box = el('div', 'writebox');
+    const inp = el('input'); inp.type = 'text'; inp.autocomplete = 'off'; inp.autocapitalize = 'off'; inp.spellcheck = false;
+    inp.setAttribute('aria-label', 'Твой ответ');
+    const btn = el('button', 'primary', 'Проверить');
+    const check = () => { if (!locked && inp.value.trim()) checkWrite(inp, btn); };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); check(); } });
+    btn.addEventListener('click', check);
+    box.append(inp, btn);
+    area.appendChild(box);
+    inp.focus();
+  }
+}
+
+function grade(ok){
+  locked = true;
+  const c = byId(cur.id);
+  if (!cur.retry){ firstTotal++; if (ok) firstOk++; }
+  if (!ok) stats[c.id].wrong++;
+
+  if (cur.type === 'mc'){
+    cycle++;
+    recent.push(cur.id); if (recent.length > CYCLE) recent.shift();
+    if (cycle >= CYCLE){
+      const fresh = recent.filter(id => !written.has(id));
+      const pool = fresh.length ? fresh : recent;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      written.add(pick);
+      queue.unshift({ type: 'write', id: pick, practice: true });
+    }
+  } else if (cur.practice){
+    cycle = 0;
+  }
+  if (!ok){
+    lastRetry = { type: cur.type, id: cur.id, retry: true };
+    queue.splice(Math.min(GAP, queue.length), 0, lastRetry);
+  }
+}
+
+function nextButton(fb, extra){
+  const row = el('div', 'row');
+  const nb = el('button', 'primary', 'Дальше');
+  nb.addEventListener('click', next);
+  row.appendChild(nb);
+  if (extra) row.appendChild(extra);
+  fb.appendChild(row);
+  nb.focus();
+}
+
+function chooseMc(btn, right){
+  if (locked) return;
+  const ok = btn.dataset.v === right;
+  grade(ok);
+  document.querySelectorAll('.opt').forEach(b => {
+    b.disabled = true;
+    if (b.dataset.v === right) b.classList.add('right');
+  });
+  const fb = $('#feedback');
+  if (ok){
+    fb.appendChild(el('span', 'good', 'Верно'));
+    timer = setTimeout(next, 750);
+  } else {
+    btn.classList.add('wrong');
+    fb.appendChild(el('span', 'bad', 'Неверно. '));
+    fb.appendChild(document.createTextNode('Правильно: '));
+    fb.appendChild(el('span', 'answer', right));
+    fb.appendChild(document.createTextNode('. Этот вопрос вернётся через ' + GAP + ' вопроса.'));
+    nextButton(fb);
+  }
+}
+
+function checkWrite(inp, btn){
+  const c = byId(cur.id), right = A(c);
+  const ok = matches(inp.value, right);
+  grade(ok);
+  inp.readOnly = true; btn.disabled = true;
+  inp.classList.add(ok ? 'right' : 'wrong');
+  const fb = $('#feedback');
+  if (ok){
+    fb.appendChild(el('span', 'good', 'Верно'));
+    if (norm(inp.value) !== norm(right)){ fb.appendChild(document.createTextNode('. Полный ответ: ')); fb.appendChild(el('span', 'answer', right)); }
+    nextButton(fb);
+  } else {
+    fb.appendChild(el('span', 'bad', 'Неверно. '));
+    fb.appendChild(document.createTextNode('Правильно: '));
+    fb.appendChild(el('span', 'answer', right));
+    fb.appendChild(document.createTextNode('. Вернётся через ' + GAP + ' вопроса.'));
+    const over = el('button', 'linkbtn', 'Я ответил верно');
+    over.addEventListener('click', () => {
+      const i = queue.indexOf(lastRetry);
+      if (i >= 0) queue.splice(i, 1);
+      stats[c.id].wrong--;
+      if (!cur.retry) firstOk++;
+      next();
+    });
+    nextButton(fb, over);
+  }
+}
+
+function finish(){
+  show('results');
+  $('#score').textContent = firstOk + ' / ' + firstTotal;
+  const wrongCards = cards.filter(c => stats[c.id] && stats[c.id].wrong > 0).sort((a, b) => stats[b.id].wrong - stats[a.id].wrong);
+  $('#scoreText').textContent = firstTotal
+    ? 'Столько вопросов ты ответил правильно с первой попытки. Слов с ошибками: ' + wrongCards.length + '.'
+    : 'Ты закончил до первого вопроса.';
+  const box = $('#mistakes'); box.innerHTML = '';
+  if (wrongCards.length){
+    const wrap = el('div', 'table-wrap');
+    const t = el('table');
+    const head = el('tr'); ['Слово', 'Перевод', 'Ошибок'].forEach(h => head.appendChild(el('th', '', h)));
+    t.appendChild(head);
+    wrongCards.forEach(c => {
+      const tr = el('tr');
+      tr.append(el('td', '', c.term), el('td', '', c.def), el('td', 'n', String(stats[c.id].wrong)));
+      t.appendChild(tr);
+    });
+    wrap.appendChild(t); box.appendChild(wrap);
+  }
+  $('#againWrongBtn').disabled = wrongCards.length === 0;
+  $('#againWrongBtn').onclick = () => start(wrongCards);
+}
+
+/* ---------- wiring ---------- */
+$('#src').addEventListener('input', refreshStatus);
+document.querySelectorAll('input[name=dir]').forEach(r => r.addEventListener('change', save));
+$('#file').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => { $('#src').value = String(rd.result); refreshStatus(); };
+  rd.onerror = () => { $('#status').textContent = 'Не получилось прочитать файл. Нужен обычный текстовый .txt.'; $('#status').classList.add('err'); };
+  rd.readAsText(f, 'utf-8');
+  e.target.value = '';
+});
+$('#startBtn').addEventListener('click', () => {
+  const { out } = parse($('#src').value);
+  if (out.length < 2) return;
+  allCards = out;
+  start(out);
+});
+$('#quitBtn').addEventListener('click', () => { clearTimeout(timer); finish(); });
+$('#againAllBtn').addEventListener('click', () => start(allCards));
+$('#newListBtn').addEventListener('click', () => show('setup'));
+
+document.addEventListener('keydown', e => {
+  if ($('#quiz').classList.contains('hidden') || locked || !cur || cur.type !== 'mc') return;
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 4){
+    const b = document.querySelectorAll('.opt')[n - 1];
+    if (b) b.click();
+  }
+});
+
+load();
+refreshStatus();
+})();
+</script>
+</body>
+</html>
